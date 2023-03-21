@@ -57,8 +57,8 @@ class AccountInvoice(models.Model):
         sign = -1 if self.type in ["in_refund", "out_refund"] else 1
         rate_date = self._get_currency_rate_date() or fields.Date.today()
         if self.currency_id != self.company_id.currency_id:
-            amount = self.currency_id._convert(
-                amount, self.company_id.currency_id, self.company_id, rate_date
+            amount = self.currency_id.compute(
+                amount, self.company_id.currency_id,
             )
         return amount * sign
 
