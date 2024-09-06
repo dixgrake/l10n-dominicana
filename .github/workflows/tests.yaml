@@ -51,7 +51,7 @@ jobs:
           path: ${{ env.GITHUB_REPOSITORY_SLUG_URL }}
 
       - name: Download python addons script
-        run: curl https://raw.githubusercontent.com/iterativo-git/dockerdoo/${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}/resources/getaddons.py -o getaddons.py
+        run: curl https://raw.githubusercontent.com/starlean-git/dockerdoo/${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}/resources/getaddons.py -o getaddons.py
 
       - name: Select Odoo modules to install
         id: get_modules
@@ -65,10 +65,10 @@ jobs:
           echo "WITHOUT_TEST_TAGS=1" >> $GITHUB_ENV
       - name: Run Odoo tests
         run: |
-          docker pull gcr.io/iterativo/dockerdoo:${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}
+          docker pull gcr.io/starlean-odoo/dockerdoo:${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}
           docker run -e RUN_TESTS -e WITHOUT_TEST_TAGS -e PIP_AUTO_INSTALL -e LOG_LEVEL -e WITHOUT_DEMO -e EXTRA_MODULES -e ODOO_EXTRA_ADDONS -e PGHOST \
           -v $GITHUB_WORKSPACE:/github/workspace \
-          --network="host" --name odoo -t gcr.io/iterativo/dockerdoo:${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}
+          --network="host" --name odoo -t gcr.io/starlean-odoo/dockerdoo:${{ env.GITHUB_BASE_REF_SLUG || env.GITHUB_REF_SLUG }}
         env:
           RUN_TESTS: '1'
           WITHOUT_TEST_TAGS: ${{ env.WITHOUT_TEST_TAGS }}
