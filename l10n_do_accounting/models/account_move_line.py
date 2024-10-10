@@ -26,7 +26,8 @@ class AccountMoveLine(models.Model):
                 )
                 price_unit = line.price_unit
                 if line.discount:
-                    price_unit = price_unit - (price_unit * (line.discount / 100))
+                    price_unit = price_unit - \
+                        (price_unit * (line.discount / 100))
                 itbis_taxes_data = line_itbis_taxes.compute_all(
                     price_unit=price_unit,
                     quantity=line.quantity,
@@ -36,8 +37,9 @@ class AccountMoveLine(models.Model):
                 )
 
     def _get_l10n_do_line_amounts(self):
-        group_itbis = self.env.ref("account.%s_tax_group_itbis" % self.company_id.id)
-        group_isr = self.env.ref("account.%s_tax_group_isr" % self.company_id.id)
+        group_itbis = self.env.ref(
+            "account.%s_group_itbis" % self.company_id.id)
+        group_isr = self.env.ref("account.%s_group_isr" % self.company_id.id)
 
         tax_lines = self.filtered(
             lambda x: x.tax_group_id.id
@@ -49,14 +51,16 @@ class AccountMoveLine(models.Model):
         itbis_tax_lines = tax_lines.filtered(
             lambda line: line.tax_group_id == group_itbis
         )
-        isr_tax_lines = tax_lines.filtered(lambda line: line.tax_group_id == group_isr)
+        isr_tax_lines = tax_lines.filtered(
+            lambda line: line.tax_group_id == group_isr)
 
         invoice_line_ids = self.filtered(lambda x: x.display_type == "product")
         taxed_lines = invoice_line_ids.filtered(
             lambda x: x.tax_ids and any(tax for tax in x.tax_ids if tax.amount)
         )
         exempt_lines = invoice_line_ids.filtered(
-            lambda x: not x.tax_ids or any(tax for tax in x.tax_ids if not tax.amount)
+            lambda x: not x.tax_ids or any(
+                tax for tax in x.tax_ids if not tax.amount)
         )
         itbis_taxed_lines = taxed_lines.filtered(
             lambda line: group_itbis in line.tax_ids.mapped("tax_group_id")
@@ -113,7 +117,8 @@ class AccountMoveLine(models.Model):
             ),
             "itbis_withholding_base_amount": sum(
                 itbis_taxed_lines.filtered(
-                    lambda line: any(tax for tax in line.tax_ids if tax.amount < 0)
+                    lambda line: any(
+                        tax for tax in line.tax_ids if tax.amount < 0)
                 ).mapped("amount_currency")
             ),
             "isr_withholding_amount": sum(
@@ -122,7 +127,8 @@ class AccountMoveLine(models.Model):
             ),
             "isr_withholding_base_amount": sum(
                 isr_taxed_lines.filtered(
-                    lambda line: any(tax for tax in line.tax_ids if tax.amount < 0)
+                    lambda line: any(
+                        tax for tax in line.tax_ids if tax.amount < 0)
                 ).mapped("amount_currency")
             ),
         }
