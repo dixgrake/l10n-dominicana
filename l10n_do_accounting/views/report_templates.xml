@@ -9,7 +9,7 @@
     </template>
 
     <template id="external_layout_striped_inherited" inherit_id="web.external_layout_striped">
-        <xpath expr="//div[hasclass('company_address')]" position="attributes">
+        <xpath expr="//div[@name='company_address']" position="attributes">
             <attribute name="t-if">doc_model != "account.move" or (doc_model == "account.move" and o.country_code != "DO")</attribute>
         </xpath>
     </template>

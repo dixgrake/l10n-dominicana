@@ -155,11 +155,10 @@
                 <td>
                     <strong t-out="subtotal['name']"/>
                 </td>
-
                 <td class="text-end">
-                    <span
-                        t-att-class="oe_subtotal_footer_separator"
-                        t-out="subtotal['formatted_amount']"
+                    <span t-att-class="oe_subtotal_footer_separator"
+                          t-out="subtotal['base_amount_currency]"
+                          t-options="{&quot;widget&quot;: &quot;monetary&quot;, &quot;display_currency&quot;: o.currency_id}"
                     />
                 </td>
             </tr>
