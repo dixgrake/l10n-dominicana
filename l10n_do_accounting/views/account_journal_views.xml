@@ -14,12 +14,12 @@
                 <group name="document_types" string="Document Types"
                         invisible="not l10n_latam_use_documents or country_code != 'DO'">
                     <field name="l10n_do_document_type_ids" nolabel="1" colspan="2">
-                        <tree create="false" delete="false" editable="top"
+                        <list create="false" delete="false" editable="top"
                               default_order="l10n_latam_document_type_id">
                             <field name="journal_id" column_invisible="True"/>
                             <field name="l10n_latam_document_type_id"/>
                             <field name="l10n_do_ncf_expiration_date"/>
-                        </tree>
+                        </list>
                     </field>
                 </group>
             </xpath>
