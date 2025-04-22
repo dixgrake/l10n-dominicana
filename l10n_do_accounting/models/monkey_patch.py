@@ -5,10 +5,15 @@ class AccountMove(models.Model):
     _inherit = "account.move"
 
     @api.depends(
-        "posted_before", "state", "journal_id", "date", "move_type", "payment_id"
+        "posted_before", "state", "journal_id", "date", "move_type", "origin_payment_id"
     )
     def _compute_name(self):
         self = self.sorted(lambda m: (m.date, m.ref or "", m._origin.id))
+
+        # Bypass para IDs temporales (NewId) - No pueden generar secuencias fiscales
+        # ya que los métodos SQL posteriores requieren IDs enteros reales
+        if not isinstance(self.id, int):
+            return super()._compute_name()
 
         for move in self:
             if move.state == "cancel":
