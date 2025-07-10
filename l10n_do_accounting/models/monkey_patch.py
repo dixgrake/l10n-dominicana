@@ -8,12 +8,12 @@ class AccountMove(models.Model):
         "posted_before", "state", "journal_id", "date", "move_type", "origin_payment_id"
     )
     def _compute_name(self):
-        self = self.sorted(lambda m: (m.date, m.ref or "", m._origin.id))
-
         # Bypass para IDs temporales (NewId) - No pueden generar secuencias fiscales
         # ya que los métodos SQL posteriores requieren IDs enteros reales
-        if not isinstance(self.id, int):
-            return super()._compute_name()
+        self = self.filtered(
+            lambda m: isinstance(m.id, int)
+        ).sorted(
+            lambda m: (m.date, m.ref or "", m._origin.id))
 
         for move in self:
             if move.state == "cancel":
@@ -36,7 +36,7 @@ class AccountMove(models.Model):
             if move.date and (not move_has_name or not move._sequence_matches_date()):
                 move._set_next_sequence()
 
-        self.filtered(lambda m: not m.name and not move.quick_edit_mode).name = "/"
+        self.filtered(lambda m: not m.name and not m.quick_edit_mode).name = "/"
         self._inverse_name()
 
         for move in self.filtered(
