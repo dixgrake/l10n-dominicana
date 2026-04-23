@@ -11,7 +11,7 @@
                 <field name="l10n_do_enable_first_sequence" invisible="1" force_save="1"/>
                 <field name="l10n_do_show_expiration_date_msg" invisible="1"/>
             </field>
-            <xpath expr="//field[@name='tax_lock_date_message']/.." position="after">
+            <xpath expr="//field[@name='duplicated_ref_ids']/.." position="after">
                 <div class="alert alert-warning"
                      role="alert" style="margin-bottom:0px;"
                      invisible="move_type == 'entry' or country_code != 'DO'
