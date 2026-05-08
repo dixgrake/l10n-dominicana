@@ -741,7 +741,7 @@ class AccountMove(models.Model):
             )
         return where_string, param
 
-    @api.depends(lambda self: [self._l10n_do_sequence_field, self._sequence_field])
+    @api.depends(lambda self: [self._l10n_do_sequence_field])
     def _compute_split_sequence(self):
         super(AccountMove, self)._compute_split_sequence()
         for record in self:
