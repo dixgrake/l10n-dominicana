@@ -313,14 +313,14 @@ class AccountMove(models.Model):
             limit=1,
         ).filtered(lambda i: not i.l10n_latam_manual_document_number)
 
-        # first set all invoices l10n_do_company_in_contingency = False
-        self.write({"l10n_do_company_in_contingency": False})
-
-        # then get draft invoices and do the thing
-        for invoice in self.filtered(lambda inv: inv.state == "draft"):
-            invoice.l10n_do_company_in_contingency = bool(
-                ecf_invoices and not invoice.company_id.l10n_do_ecf_issuer
+        for invoice in self:
+            invoice.l10n_do_company_in_contingency = (
+            invoice.state == "draft"
+            and bool(
+                ecf_invoices
+                and not invoice.company_id.l10n_do_ecf_issuer
             )
+        )
 
     @api.depends("l10n_do_ecf_security_code", "l10n_do_ecf_sign_date", "invoice_date")
     def _compute_l10n_do_electronic_stamp(self):
