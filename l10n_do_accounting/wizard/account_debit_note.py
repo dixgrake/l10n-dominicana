@@ -159,55 +159,77 @@ class AccountDebitNote(models.TransientModel):
 
     def _prepare_default_values(self, move):
         res = super(AccountDebitNote, self)._prepare_default_values(move)
-
-        # Include additional info when l10n_do debit note
+    
         if self.l10n_latam_country_code == "DO" and move.l10n_latam_use_documents:
+            # Información fiscal dominicana que siempre debe conservarse.
             res.update(
-                dict(
-                    l10n_latam_document_type_id=self.l10n_latam_document_type_id.id,
-                    l10n_do_ecf_modification_code=self.l10n_do_ecf_modification_code,
-                    l10n_latam_document_number=self.l10n_latam_document_number,
-                    l10n_do_origin_ncf=move.l10n_latam_document_number,
-                    l10n_do_expense_type=move.l10n_do_expense_type,
-                    l10n_do_income_type=move.l10n_do_income_type,
-                    invoice_origin=move.name,
-                    line_ids=[(5, 0, 0)],
-                    l10n_do_fiscal_number=move.name,
+                {
+                    "l10n_latam_document_type_id": (
+                        self.l10n_latam_document_type_id.id
+                    ),
+                    "l10n_do_ecf_modification_code": (
+                        self.l10n_do_ecf_modification_code
+                    ),
+                    "l10n_latam_document_number": (
+                        self.l10n_latam_document_number
+                    ),
+                    "l10n_do_origin_ncf": (
+                        move.l10n_latam_document_number
+                    ),
+                    "l10n_do_expense_type": move.l10n_do_expense_type,
+                    "l10n_do_income_type": move.l10n_do_income_type,
+                    "invoice_origin": move.name,
+                    "l10n_do_fiscal_number": move.name,
+                }
+            )
+    
+            # Solo crear la línea única cuando NO se solicitó copiar
+            # las líneas de la factura original.
+            if not self.copy_lines:
+                origin_invoice_id = (
+                    self.move_ids
+                    or self.env["account.move"].browse(
+                        self.env.context.get("active_ids")
+                    )
                 )
-            )
-
-            origin_invoice_id = self.move_ids or self.env["account.move"].browse(
-                self.env.context.get("active_ids")
-            )
-            taxes = (
-                [
+    
+                taxes = (
+                    [
+                        (
+                            6,
+                            0,
+                            [
+                                origin_invoice_id._get_debit_line_tax(
+                                    res["invoice_date"]
+                                ).id
+                            ],
+                        )
+                    ]
+                    if self.l10n_do_debit_type
+                    else [(5, 0, 0)]
+                )
+    
+                price_unit = (
+                    self.l10n_do_amount
+                    if self.l10n_do_debit_type == "fixed_amount"
+                    else origin_invoice_id.amount_untaxed
+                    * (self.l10n_do_percentage / 100)
+                )
+    
+                res["line_ids"] = [(5, 0, 0)]
+                res["invoice_line_ids"] = [
                     (
-                        6,
                         0,
-                        [origin_invoice_id._get_debit_line_tax(res["invoice_date"]).id],
+                        0,
+                        {
+                            "name": self.reason or _("Debit"),
+                            "price_unit": price_unit,
+                            "quantity": 1,
+                            "tax_ids": taxes,
+                        },
                     )
                 ]
-                if self.l10n_do_debit_type
-                else [(5, 0)]
-            )
-            price_unit = (
-                self.l10n_do_amount
-                if self.l10n_do_debit_type == "fixed_amount"
-                else origin_invoice_id.amount_untaxed * (self.l10n_do_percentage / 100)
-            )
-            res["invoice_line_ids"] = [
-                (
-                    0,
-                    0,
-                    {
-                        "name": self.reason or _("Debit"),
-                        "price_unit": price_unit,
-                        "quantity": 1,
-                        "tax_ids": taxes,
-                    },
-                )
-            ]
-
+    
         return res
 
     def create_debit(self):
