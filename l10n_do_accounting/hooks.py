@@ -15,8 +15,10 @@ nothing happens) or after the migration scripts already ran.
 """
 
 import logging
+import os
 
 from odoo import api, SUPERUSER_ID
+from odoo.tools.config import config as odoo_config
 
 _logger = logging.getLogger(__name__)
 
@@ -61,6 +63,9 @@ def post_init_hook(env):
     _hook_set_manual_document_number(cr)
     _hook_populate_document_numbers(cr)
     _hook_create_journal_document_types(env)
+    _hook_clear_draft_ncf(cr)
+    _hook_fix_invoice_name_sequence(cr)
+    _hook_deactivate_orphan_views(cr)
 
     _logger.info("DONE  post_init_hook l10n_do_accounting")
 
@@ -558,12 +563,25 @@ def _hook_populate_document_numbers(cr):
 # ---------------------------------------------------------------------------
 
 def _hook_create_journal_document_types(env):
+    # res.company.country_id is non-stored in v17 – resolve Dominican companies first.
+    do_country = env['res.country'].search([('code', '=', 'DO')], limit=1)
+    if not do_country:
+        return
+    do_companies = env['res.company'].search([
+        ('partner_id.country_id', '=', do_country.id)
+    ])
+    if not do_companies:
+        return
+
+    # Find Dominican journals with documents enabled but without document type entries
     do_journals = env['account.journal'].search([
-        ('company_id.country_id.code', '=', 'DO'),
+        ('company_id', 'in', do_companies.ids),
         ('l10n_latam_use_documents', '=', True),
         ('type', 'in', ('sale', 'purchase')),
-        ('l10n_do_document_type_ids', '=', False),
     ])
+    # Filter journals that don't have document types yet (can't use one2many in domain)
+    do_journals = do_journals.filtered(lambda j: not j.l10n_do_document_type_ids)
+
     if not do_journals:
         return
     created = 0
@@ -574,6 +592,156 @@ def _hook_create_journal_document_types(env):
         except Exception as e:
             _logger.warning("hook: journal '%s' (id=%d): %s", journal.name, journal.id, e)
     _logger.info("hook: created %d journal document type entries", created)
+
+
+# ---------------------------------------------------------------------------
+# Clear NCF from empty draft invoices
+# ---------------------------------------------------------------------------
+
+def _hook_clear_draft_ncf(cr):
+    """Remove l10n_do_fiscal_number from empty draft out_invoice/out_refund.
+
+    v12 drafts that were never confirmed could have NCFs pre-assigned.  In v17
+    the NCF is only committed on post().  These drafts block the sequence
+    counter and cause a duplicate-key error on the next new invoice.
+    """
+    cr.execute("""
+        UPDATE account_move
+           SET l10n_do_fiscal_number  = NULL,
+               l10n_do_sequence_prefix = NULL,
+               l10n_do_sequence_number = 0
+         WHERE state    = 'draft'
+           AND move_type IN ('out_invoice','out_refund')
+           AND name     = '/'
+           AND (amount_total = 0 OR amount_total IS NULL)
+           AND l10n_do_fiscal_number IS NOT NULL
+           AND l10n_do_fiscal_number != ''
+    """)
+    if cr.rowcount:
+        _logger.info("hook: cleared NCF from %d empty draft invoices", cr.rowcount)
+
+
+# ---------------------------------------------------------------------------
+# Fix invoice name sequences (v12 B00XXXXXX → v17 CODE/YYYY/NNNNN)
+# ---------------------------------------------------------------------------
+
+def _hook_fix_invoice_name_sequence(cr):
+    """Rewrite account_move.name for DO sale journals from v12 format to v17.
+
+    In v12, account_invoice.move_name stored values like 'B00003163'.  After
+    the core migration this lands in account_move.name.  Odoo v17's sequence
+    mixin needs name to be 'JOURNAL/YEAR/SEQ' (e.g. 'VNT/2024/00001').
+    Without this fix posting a new invoice raises AttributeError at
+    sequence_mixin.py:248.
+    """
+    cr.execute("""
+        SELECT aj.id, aj.code
+          FROM account_journal aj
+         WHERE aj.type = 'sale'
+           AND aj.l10n_latam_use_documents = TRUE
+           AND EXISTS (
+               SELECT 1 FROM account_move am
+                WHERE am.journal_id = aj.id
+                  AND am.name IS NOT NULL
+                  AND am.name != '/'
+                  AND am.name ~ '^[Bb][0-9]{8,}$'
+           )
+    """)
+    journals = cr.fetchall()
+    if not journals:
+        _logger.info("hook: no v12-format invoice names found — skipping")
+        return
+
+    total = 0
+    for journal_id, journal_code in journals:
+        code = (journal_code or 'VNT').upper()
+        cr.execute("""
+            WITH ranked AS (
+                SELECT
+                    am.id,
+                    %s || '/' || EXTRACT(YEAR FROM am.date)::int || '/'
+                        || LPAD(
+                            ROW_NUMBER() OVER (
+                                PARTITION BY EXTRACT(YEAR FROM am.date)
+                                ORDER BY am.name
+                            )::text,
+                            5, '0'
+                        ) AS new_name,
+                    %s || '/' || EXTRACT(YEAR FROM am.date)::int || '/'
+                        AS new_prefix,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY EXTRACT(YEAR FROM am.date)
+                        ORDER BY am.name
+                    )::int AS new_number
+                FROM account_move am
+                WHERE am.journal_id = %s
+                  AND am.name IS NOT NULL
+                  AND am.name != '/'
+                  AND am.name ~ '^[Bb][0-9]{8,}$'
+            )
+            UPDATE account_move am
+               SET name            = r.new_name,
+                   sequence_prefix = r.new_prefix,
+                   sequence_number = r.new_number
+              FROM ranked r
+             WHERE am.id = r.id
+        """, (code, code, journal_id))
+        count = cr.rowcount
+        total += count
+        _logger.info("hook: journal %s (id=%d): %d invoice names fixed", code, journal_id, count)
+    _logger.info("hook: total invoice names fixed: %d", total)
+
+
+# ---------------------------------------------------------------------------
+# Deactivate views from uninstalled/missing modules
+# ---------------------------------------------------------------------------
+
+def _hook_deactivate_orphan_views(cr):
+    """Deactivate views whose arch_fs points to a module that no longer exists.
+
+    Cross-checks two conditions — both must be true to deactivate a view:
+      1. The module is NOT installed according to ir_module_module.
+      2. The module directory cannot be found in any registered addons path
+         (uses odoo.addons.__path__ which includes Odoo core paths that are
+         absent from the addons_path config entry).
+
+    Using only condition 1 fails when the old v12 module is still in
+    'installed' state because it was never explicitly uninstalled.
+    Using only condition 2 fails when the config addons_path omits the Odoo
+    internal path (/opt/odoo/odoo/addons), causing core modules like 'base'
+    to be incorrectly deactivated.
+    """
+    import odoo.addons as _odoo_addons
+    all_addons_paths = list(_odoo_addons.__path__)
+
+    # Collect installed module names
+    cr.execute("SELECT name FROM ir_module_module WHERE state IN ('installed','to upgrade','to install')")
+    installed_modules = {row[0] for row in cr.fetchall()}
+
+    cr.execute("SELECT id, arch_fs FROM ir_ui_view WHERE active = TRUE AND arch_fs IS NOT NULL")
+    orphan_ids = []
+    for view_id, arch_fs in cr.fetchall():
+        module = arch_fs.split('/')[0]
+        # Skip if installed according to the DB
+        if module in installed_modules:
+            continue
+        # Also skip if the directory exists on the filesystem (module may be
+        # registered outside ir_module_module, e.g. during install)
+        if any(os.path.isdir(os.path.join(p, module)) for p in all_addons_paths):
+            continue
+        orphan_ids.append(view_id)
+
+    if orphan_ids:
+        cr.execute(
+            "UPDATE ir_ui_view SET active = FALSE WHERE id = ANY(%s)",
+            (orphan_ids,),
+        )
+        _logger.warning(
+            "hook: deactivated %d orphan view(s) from modules missing in DB and filesystem",
+            len(orphan_ids),
+        )
+    else:
+        _logger.info("hook: no orphan views found")
 
 
 # ---------------------------------------------------------------------------
