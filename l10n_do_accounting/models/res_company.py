@@ -30,7 +30,7 @@ class ResCompany(models.Model):
         if vals.get("vat"):
             # Fiscal journals created before the VAT was set have no document types
             # yet (account.journal._l10n_do_create_document_types): create them now.
-            journals = self.env["account.journal"].search(
+            journals = self.env["account.journal"].sudo().search(
                 [
                     ("company_id", "in", self.ids),
                     ("type", "in", ("sale", "purchase")),
