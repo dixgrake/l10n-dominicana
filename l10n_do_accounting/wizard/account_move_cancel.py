@@ -22,7 +22,7 @@ class AccountMoveCancel(models.TransientModel):
     )
 
     def move_cancel(self):
-        context = dict(self._context or {})
+        context = dict(self.env.context or {})
         active_ids = context.get("active_ids", []) or []
         for invoice in self.env["account.move"].browse(active_ids):
             if invoice.state == "cancel":

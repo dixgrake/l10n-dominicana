@@ -28,7 +28,7 @@ class AccountMoveReversal(models.TransientModel):
 
     @api.model
     def _default_account(self):
-        move_type = self._context.get("move_type")
+        move_type = self.env.context.get("move_type")
         journal = (
             self.env["account.move"]
             .with_context(

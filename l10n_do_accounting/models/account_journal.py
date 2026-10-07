@@ -41,7 +41,7 @@ class AccountJournal(models.Model):
 
         ecf_types = ["e-%s" % d for d in types_list if d not in ("unique", "import")]
 
-        if self._context.get("use_documents", False) or not invoice:
+        if self.env.context.get("use_documents", False) or not invoice:
             # When called from Journals return all ncf+ecf types to
             # create fiscal sequences
             return types_list + ecf_types
