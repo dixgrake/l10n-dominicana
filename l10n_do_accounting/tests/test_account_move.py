@@ -821,3 +821,36 @@ class AccountMoveTest(common.L10nDOTestsCommon):
                 "l10n_do_invoice_total_currency": 6962.000000974679,
             },
         )
+
+    def test_012_debit_note_account_domain_is_valid(self):
+        """The debit note wizard account domain must only use existing fields.
+
+        Odoo 19 replaced account.account.deprecated with active, and a domain on a
+        missing field raises ValueError when the user opens the account selector.
+        """
+        wizard_model = self.env["account.debit.note"]
+        domain = wizard_model._fields["l10n_do_account_id"].domain
+        domain = domain(wizard_model) if callable(domain) else domain
+        self.env["account.account"].search(domain, limit=1)
+
+    def test_013_debit_note_keeps_lines_when_copy_lines(self):
+        """With copy_lines the debit note keeps the original lines (no single debit line)."""
+        invoice = self._create_l10n_do_invoice(
+            data={"document_type": self.do_document_type["e-fiscal"],
+                  "document_number": "E310000000013",
+                  "lines": [{"price_unit": 100}, {"price_unit": 50}]}
+        )
+        invoice._post()
+        wizard = (
+            self.env["account.debit.note"]
+            .with_context(active_model="account.move", active_ids=invoice.ids)
+            .create({
+                "l10n_latam_document_type_id": self.do_document_type["e-debit_note"].id,
+                "l10n_latam_document_number": "E330000000013",
+                "l10n_do_ecf_modification_code": "3",
+                "reason": "copy lines",
+                "copy_lines": True,
+            })
+        )
+        debit = self.env["account.move"].browse(wizard.create_debit()["res_id"])
+        self.assertEqual(len(debit.invoice_line_ids), 2)
