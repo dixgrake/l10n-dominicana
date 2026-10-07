@@ -699,8 +699,9 @@ class AccountMoveTest(common.L10nDOTestsCommon):
                 "document_number": "B0100000001",
             }
         )
-        self.assertEqual(invoice_1.name, "INV/%s/0001" % invoice_1.date.year)
         invoice_1._post()
+        # Odoo 19 only names a move when it is posted (account_move._compute_name).
+        self.assertEqual(invoice_1.name, "INV/%s/0001" % invoice_1.date.year)
         self.assertEqual(invoice_1.l10n_do_fiscal_number, "B0100000001")
 
         invoice_2 = self._create_l10n_do_invoice()
@@ -767,7 +768,8 @@ class AccountMoveTest(common.L10nDOTestsCommon):
             {
                 "base_amount": 100.0,
                 "exempt_amount": 0,
-                "isr_withholding_amount": 10.0,
+                # Odoo 19 chart "do": ret_10_income_person became ret_15_income_person.
+                "isr_withholding_amount": 15.0,
                 "isr_withholding_base_amount": 100.0,
                 "itbis_0_base_amount": 0,
                 "itbis_0_tax_amount": 0,

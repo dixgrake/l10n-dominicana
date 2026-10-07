@@ -3,17 +3,25 @@ from odoo.addons.account.tests.common import AccountTestInvoicingCommon
 
 
 class L10nDOTestsCommon(AccountTestInvoicingCommon):
-    @classmethod
-    def setUpClass(cls, chart_template_ref="do"):
-        super(L10nDOTestsCommon, cls).setUpClass(chart_template_ref=chart_template_ref)
+    # Odoo 19: the chart template is a class attribute; setUpClass no longer takes
+    # chart_template_ref.
+    chart_template = "do"
+    country_code = "DO"
 
-        cls.do_company = cls.setup_company_data(
-            "INDEXA SRL",
-            chart_template=chart_template_ref,
-            vat="131793916",
-            street="dummy address",
-            country_id=cls.env.ref("base.do").id,
-        )["company"]
+    @classmethod
+    def _create_company(cls, **create_values):
+        # The DO localization needs a VAT and an address to create the fiscal journals.
+        create_values.setdefault("vat", "131793916")
+        create_values.setdefault("street", "dummy address")
+        return super()._create_company(**create_values)
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+
+        cls.do_company = cls.env.company
+        # Odoo 19 test users are not admin: grant the debit note group the module defines.
+        cls.env.user.group_ids |= cls.env.ref("l10n_do_accounting.group_l10n_do_debit_note")
 
         # multi-currency variables
         cls.usd_currency = cls.env.ref("base.USD")
@@ -149,7 +157,7 @@ class L10nDOTestsCommon(AccountTestInvoicingCommon):
                                     company_tax_prefix + "ret_100_tax_person"
                                 ).id,
                                 self.env.ref(
-                                    company_tax_prefix + "ret_10_income_person"
+                                    company_tax_prefix + "ret_15_income_person"
                                 ).id,
                             ]
                         )
