@@ -14,6 +14,14 @@ class L10nDOTestsCommon(AccountTestInvoicingCommon):
             street="dummy address",
             country_id=cls.env.ref("base.do").id,
         )["company"]
+        # Work on the Dominican company: the companies AccountTestInvoicingCommon
+        # creates have no VAT, and the document type domain needs one.
+        cls.env.user.write(
+            {"company_ids": [(4, cls.do_company.id)], "company_id": cls.do_company.id}
+        )
+        cls.env = cls.env(
+            context=dict(cls.env.context, allowed_company_ids=[cls.do_company.id])
+        )
 
         # multi-currency variables
         cls.usd_currency = cls.env.ref("base.USD")
@@ -113,6 +121,11 @@ class L10nDOTestsCommon(AccountTestInvoicingCommon):
         with Form(
             self.env["account.move"].with_context(default_move_type=invoice_type)
         ) as invoice_form:
+            # Date first: in Odoo 17 a draft gets its name from the date it has when
+            # the journal is set, and a later date from another year makes posting
+            # fail with "The Date doesn't match the sequence number".
+            if data.get("invoice_date"):
+                invoice_form.invoice_date = data.get("invoice_date")
             invoice_form.partner_id = data.get("partner", self.fiscal_partner)
             if "in_" not in invoice_type:
                 invoice_form.journal_id = data.get("journal", self.fiscal_sale_journal)
