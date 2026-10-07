@@ -24,3 +24,20 @@ class ResCompany(models.Model):
             if self.country_id == self.env.ref("base.do")
             else super()._localization_use_documents()
         )
+
+    def write(self, vals):
+        res = super().write(vals)
+        if vals.get("vat"):
+            # Fiscal journals created before the VAT was set have no document types
+            # yet (account.journal._l10n_do_create_document_types): create them now.
+            journals = self.env["account.journal"].search(
+                [
+                    ("company_id", "in", self.ids),
+                    ("type", "in", ("sale", "purchase")),
+                    ("l10n_latam_use_documents", "=", True),
+                ]
+            )
+            for journal in journals:
+                journal._l10n_do_create_document_types()
+        return res
+
