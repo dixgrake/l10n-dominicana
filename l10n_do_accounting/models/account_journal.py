@@ -1,5 +1,9 @@
+import logging
+
 from odoo import fields, models, api, _
 from odoo.exceptions import RedirectWarning, ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class AccountJournal(models.Model):
@@ -156,6 +160,15 @@ class AccountJournal(models.Model):
             not self.l10n_latam_use_documents
             or self.company_id.country_id != self.env.ref("base.do")
         ):
+            return
+        if not self.company_id.vat:
+            # The chart of accounts creates the fiscal journals before the user can
+            # set the VAT. The document types depend on it, so they are created
+            # when it is set (res.company.write) instead of blocking the install.
+            _logger.info(
+                "Journal %s: document types postponed until company %s has a VAT.",
+                self.code, self.company_id.name,
+            )
             return
 
         document_types = self.l10n_do_document_type_ids
