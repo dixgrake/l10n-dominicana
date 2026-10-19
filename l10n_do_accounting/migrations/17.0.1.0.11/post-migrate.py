@@ -247,6 +247,20 @@ def remove_v12_records(env):
             record.unlink()
             _logger.info("v12 record %s removed", xmlid)
 
+    # The upgrade turns the v12 asset templates into ir.asset records without
+    # xmlid ("<module>.assets_backend--view_id:<id>--<n>") pointing to v12
+    # files: the web client fails to load them.
+    assets = env["ir.asset"].search(
+        [
+            "|",
+            ("name", "=like", "ncf\\_manager.%--view\\_id:%"),
+            ("name", "=like", "ncf\\_invoice\\_template.%--view\\_id:%"),
+        ]
+    )
+    if assets:
+        _logger.info("v12 assets removed: %s", ", ".join(assets.mapped("path")))
+        assets.unlink()
+
 
 def log_obsolete_data(cr):
     """The legacy v12 columns and the account_invoice table are kept: they are

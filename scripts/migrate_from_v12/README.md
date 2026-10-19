@@ -76,8 +76,12 @@ La numeración continúa desde el último NCF migrado de cada tipo.
    web (Internal Server Error en `/web`):
 
    ```bash
-   echo "env['ir.module.module'].search([('name', '=', 'web_responsive')]).module_uninstall(); env.cr.commit()" | odoo shell -d <db> --no-http
+   echo "env['ir.module.module'].search([('name', '=', 'web_responsive')]).module_uninstall(); env['ir.asset'].search([('name', '=like', 'web\_responsive.%')]).unlink(); env.cr.commit()" | odoo shell -d <db> --no-http
    ```
+
+   El upgrade convierte sus plantillas de assets v12 en registros `ir.asset`
+   sin xmlid, que `module_uninstall` no borra; sin eso el navegador muestra
+   "Could not get content for /web_responsive/static/...".
 
    Para ver cuáles quedan: `SELECT name FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove');`
 
