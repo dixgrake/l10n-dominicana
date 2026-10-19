@@ -130,15 +130,17 @@ def migrate_account_move(cr):
         """
     )
 
-    # v12 column → v17 column, both on account_move
+    # v12 column → v17 column, both on account_move, and the moves it applies to
     renamed = [
-        ("expense_type", "l10n_do_expense_type"),
-        ("income_type", "l10n_do_income_type"),
-        ("anulation_type", "l10n_do_cancellation_type"),
-        ("origin_out", "l10n_do_origin_ncf"),
-        ("ncf_expiration_date", "l10n_do_ncf_expiration_date"),
+        ("expense_type", "l10n_do_expense_type", "TRUE"),
+        ("income_type", "l10n_do_income_type", "TRUE"),
+        # v12 kept the cancellation type of invoices that were posted again:
+        # in v17 it is only meaningful on cancelled ones (DGII 608)
+        ("anulation_type", "l10n_do_cancellation_type", "state = 'cancel'"),
+        ("origin_out", "l10n_do_origin_ncf", "TRUE"),
+        ("ncf_expiration_date", "l10n_do_ncf_expiration_date", "TRUE"),
     ]
-    for old, new in renamed:
+    for old, new, condition in renamed:
         if not column_exists(cr, "account_move", old):
             continue
         cr.execute(
@@ -148,6 +150,7 @@ def migrate_account_move(cr):
              WHERE {new} IS NULL
                AND {old} IS NOT NULL
                AND move_type <> 'entry'
+               AND {condition}
             """
         )
         _logger.info("account_move.%s → %s: %s rows", old, new, cr.rowcount)

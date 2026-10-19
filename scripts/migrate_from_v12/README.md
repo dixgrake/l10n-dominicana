@@ -22,8 +22,9 @@ Hacer un respaldo de la base de datos antes de empezar.
 
    Con docker: `docker exec -i <contenedor_db> psql -U odoo -d <db> -v ON_ERROR_STOP=1 < scripts/migrate_from_v12/00_rename_v12_modules.sql`
 
-2. Actualizar la localización (instala `l10n_latam_invoice_document` y
-   actualiza también `dgii_reports` si está en el addons path):
+2. Actualizar la localización. Instala `l10n_latam_invoice_document` y
+   actualiza también `dgii_reports` (repo l10n-do-addons, branch con
+   `dgii_reports/migrations/17.0.1.0.2`), que depende de `l10n_do_accounting`:
 
    ```bash
    odoo -d <db> -u l10n_do_accounting --stop-after-init
@@ -49,6 +50,10 @@ desde cero y los datos v12 no se migrarían.
 - xmlids de grupos de impuestos del plan v12 (`<cid>_group_itbis`, ...) → los
   nombres de la plantilla v17 (`<cid>_tax_group_itbis`, ...).
 - Se eliminan las vistas, el cron y los parámetros de `ncf_manager`.
+- `dgii_reports`: las cajas IT-1 de las cuentas (`account_fiscal_type` →
+  `box_attachment_a`/`box_it1`, mapeadas por significado), la clasificación
+  DGII de los impuestos (`l10n_do_tax_type`, `isr_retention_type`) y los
+  reportes ya generados.
 
 La numeración continúa desde el último NCF migrado de cada tipo.
 
