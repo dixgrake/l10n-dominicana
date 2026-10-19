@@ -70,6 +70,17 @@ La numeración continúa desde el último NCF migrado de cada tipo.
    Solo actúa en diarios banco/caja sin líneas de extracto y nunca antes de la
    fecha de bloqueo. Con `DRY_RUN = True` solo muestra lo que cambiaría.
 
+4. Módulos de terceros (p. ej. OCA `web_responsive`) que el upgrade dejó
+   "to upgrade" y no están en el addons path de 17.0: instalar su versión 17.0
+   o desinstalarlos. Sus vistas v12 siguen activas y pueden romper el cliente
+   web (Internal Server Error en `/web`):
+
+   ```bash
+   echo "env['ir.module.module'].search([('name', '=', 'web_responsive')]).module_uninstall(); env.cr.commit()" | odoo shell -d <db> --no-http
+   ```
+
+   Para ver cuáles quedan: `SELECT name FROM ir_module_module WHERE state IN ('to upgrade', 'to install', 'to remove');`
+
 ## Después de migrar
 
 - Revisar en los diarios las fechas de vencimiento de los tipos de documento:
