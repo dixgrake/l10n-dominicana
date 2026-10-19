@@ -52,6 +52,19 @@ desde cero y los datos v12 no se migrarían.
 
 La numeración continúa desde el último NCF migrado de cada tipo.
 
+3. Opcional, solo si la empresa **no concilia extractos bancarios**: llevar
+   los pagos al banco directamente, como en v12 (ver el aviso de Odoo sobre
+   los pagos de 14.0). El upgrade deja los pagos posteriores a la fecha de
+   bloqueo en cuentas "Outstanding Receipts/Payments" y sus facturas
+   "En proceso de pago", con lo que el saldo del banco no cuadra:
+
+   ```bash
+   odoo shell -d <db> --no-http < scripts/migrate_from_v12/10_payments_without_bank_reconciliation.py
+   ```
+
+   Solo actúa en diarios banco/caja sin líneas de extracto y nunca antes de la
+   fecha de bloqueo. Con `DRY_RUN = True` solo muestra lo que cambiaría.
+
 ## Después de migrar
 
 - Revisar en los diarios las fechas de vencimiento de los tipos de documento:
