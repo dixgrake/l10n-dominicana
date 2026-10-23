@@ -38,10 +38,14 @@
                 </group>
             </field>
             <field name="reason" position="after">
+                <field name="l10n_do_enable_first_sequence" invisible="1"/>
                 <field name="l10n_latam_document_number"
-                       invisible="move_type != 'in_invoice'"
-                       required="move_type == 'in_invoice'"
+                       invisible="move_type != 'in_invoice' and not l10n_do_enable_first_sequence"
+                       required="move_type == 'in_invoice' or l10n_do_enable_first_sequence"
                 />
+                <div class="text-muted" colspan="2" invisible="not l10n_do_enable_first_sequence">
+                    This is the first debit note of this document type: input its fiscal number.
+                </div>
                 <field name="l10n_do_percentage"
                        invisible="l10n_latam_country_code != 'DO' or l10n_do_debit_type != 'percentage'"
                        required="l10n_do_debit_type == 'percentage'"/>

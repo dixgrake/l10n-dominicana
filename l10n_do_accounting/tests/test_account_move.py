@@ -854,3 +854,64 @@ class AccountMoveTest(common.L10nDOTestsCommon):
         )
         debit = self.env["account.move"].browse(wizard.create_debit()["res_id"])
         self.assertEqual(len(debit.invoice_line_ids), 2)
+
+    def test_014_first_sequence_required_on_post(self):
+        """
+        Documents that need their first fiscal number set manually cannot be
+        posted without it, including credit/debit notes created from an invoice
+        """
+        sale_invoice_1_id = self._create_l10n_do_invoice()
+        self.assertTrue(sale_invoice_1_id.l10n_do_enable_first_sequence)
+        with self.assertRaises(ValidationError):
+            sale_invoice_1_id._post()
+
+        sale_invoice_1_id.l10n_latam_document_number = "B0100000001"
+        sale_invoice_1_id._post()
+        self.assertEqual(sale_invoice_1_id.l10n_do_fiscal_number, "B0100000001")
+
+        # Credit note: the wizard asks for the first fiscal number
+        def credit_note_wizard(document_number=None):
+            vals = {
+                "l10n_do_refund_type": "full_refund",
+                "journal_id": sale_invoice_1_id.journal_id.id,
+            }
+            if document_number:
+                vals["l10n_latam_document_number"] = document_number
+            return (
+                self.env["account.move.reversal"]
+                .with_context(
+                    active_ids=sale_invoice_1_id.ids, active_model="account.move"
+                )
+                .create(vals)
+            )
+
+        wizard = credit_note_wizard()
+        self.assertTrue(wizard.l10n_do_enable_first_sequence)
+        with self.assertRaises(ValidationError):
+            wizard.modify_moves()
+
+        credit_note_wizard("B0400000001").modify_moves()
+        credit_note = sale_invoice_1_id.reversal_move_ids
+        self.assertEqual(credit_note.state, "posted")
+        self.assertEqual(credit_note.l10n_do_fiscal_number, "B0400000001")
+
+        # Next credit notes get their fiscal number automatically
+        sale_invoice_2_id = self._create_l10n_do_invoice()
+        sale_invoice_2_id._post()
+        wizard = (
+            self.env["account.move.reversal"]
+            .with_context(
+                active_ids=sale_invoice_2_id.ids, active_model="account.move"
+            )
+            .create(
+                {
+                    "l10n_do_refund_type": "full_refund",
+                    "journal_id": sale_invoice_2_id.journal_id.id,
+                }
+            )
+        )
+        self.assertFalse(wizard.l10n_do_enable_first_sequence)
+        wizard.modify_moves()
+        self.assertEqual(
+            sale_invoice_2_id.reversal_move_ids.l10n_do_fiscal_number, "B0400000002"
+        )
