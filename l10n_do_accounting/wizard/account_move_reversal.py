@@ -60,6 +60,33 @@ class AccountMoveReversal(models.TransientModel):
     is_ecf_invoice = fields.Boolean(
         string="Is Electronic Invoice",
     )
+    l10n_do_enable_first_sequence = fields.Boolean(
+        string="Enable first fiscal sequence",
+        compute="_compute_l10n_do_enable_first_sequence",
+        help="Technical field that indicates the first fiscal number of the credit "
+        "note document type must be set manually.",
+    )
+
+    @api.depends("l10n_latam_document_type_id", "move_ids", "journal_id")
+    def _compute_l10n_do_enable_first_sequence(self):
+        self.l10n_do_enable_first_sequence = False
+        for rec in self.filtered(
+            lambda r: r.country_code == "DO"
+            and r.l10n_latam_use_documents
+            and r.l10n_latam_document_type_id
+            and len(r.move_ids) == 1
+        ):
+            refund = rec.env["account.move"].new(
+                {
+                    "move_type": rec._reverse_type_map(rec.move_ids.move_type),
+                    "journal_id": rec.journal_id.id,
+                    "partner_id": rec.move_ids.partner_id.id,
+                    "company_id": rec.move_ids.company_id.id,
+                    "l10n_latam_document_type_id": rec.l10n_latam_document_type_id.id,
+                    "reversed_entry_id": rec.move_ids.id,
+                }
+            )
+            rec.l10n_do_enable_first_sequence = refund.l10n_do_enable_first_sequence
 
     @api.depends(
         "l10n_latam_document_type_id", "country_code", "l10n_latam_use_documents"

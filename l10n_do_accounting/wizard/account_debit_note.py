@@ -68,6 +68,37 @@ class AccountDebitNote(models.TransientModel):
     l10n_latam_document_type_id = fields.Many2one(
         "l10n_latam.document.type", "Document Type", ondelete="cascade"
     )
+    l10n_do_enable_first_sequence = fields.Boolean(
+        string="Enable first fiscal sequence",
+        compute="_compute_l10n_do_enable_first_sequence",
+        help="Technical field that indicates the first fiscal number of the debit "
+        "note document type must be set manually.",
+    )
+
+    @api.depends("l10n_latam_document_type_id", "move_ids")
+    def _compute_l10n_do_enable_first_sequence(self):
+        self.l10n_do_enable_first_sequence = False
+        for rec in self.filtered(
+            lambda r: r.l10n_latam_country_code == "DO"
+            and r.l10n_latam_use_documents
+            and r.l10n_latam_document_type_id
+            and len(r.move_ids) == 1
+        ):
+            move_id = rec.move_ids
+            debit_note = rec.env["account.move"].new(
+                {
+                    "move_type": "out_invoice"
+                    if move_id.is_sale_document()
+                    else "in_invoice",
+                    "journal_id": move_id.journal_id.id,
+                    "partner_id": move_id.partner_id.id,
+                    "company_id": move_id.company_id.id,
+                    "l10n_latam_document_type_id": rec.l10n_latam_document_type_id.id,
+                }
+            )
+            rec.l10n_do_enable_first_sequence = (
+                debit_note.l10n_do_enable_first_sequence
+            )
 
     @api.model
     def default_get(self, fields):
