@@ -1639,3 +1639,49 @@ msgstr "Exento"
 #: model:l10n_latam.document.type,name:l10n_do_accounting.ncf_unique_client
 msgid "Único Ingreso"
 msgstr ""
+
+#. module: l10n_do_accounting
+#: model:ir.model.fields,help:l10n_do_accounting.field_account_move_reversal__l10n_do_enable_first_sequence
+msgid ""
+"Technical field that indicates the first fiscal number of the credit note "
+"document type must be set manually."
+msgstr ""
+"Campo técnico que indica que el primer número fiscal del tipo de documento "
+"de la nota de crédito debe digitarse manualmente."
+
+#. module: l10n_do_accounting
+#: model:ir.model.fields,help:l10n_do_accounting.field_account_debit_note__l10n_do_enable_first_sequence
+msgid ""
+"Technical field that indicates the first fiscal number of the debit note "
+"document type must be set manually."
+msgstr ""
+"Campo técnico que indica que el primer número fiscal del tipo de documento "
+"de la nota de débito debe digitarse manualmente."
+
+#. module: l10n_do_accounting
+#. odoo-python
+#: code:addons/l10n_do_accounting/models/account_move.py:0
+#, python-format
+msgid ""
+"The first fiscal number of the following document types must be set manually"
+" before posting: %s"
+msgstr ""
+"Debe digitar manualmente el primer número fiscal de los siguientes tipos de "
+"documento antes de confirmar: %s"
+
+#. module: l10n_do_accounting
+#: model_terms:ir.ui.view,arch_db:l10n_do_accounting.view_account_move_reversal_inherited
+msgid ""
+"This is the first credit note of this document type: input its fiscal "
+"number."
+msgstr ""
+"Esta es la primera nota de crédito de este tipo de documento: digite su "
+"número fiscal."
+
+#. module: l10n_do_accounting
+#: model_terms:ir.ui.view,arch_db:l10n_do_accounting.view_account_debit_note_inherited
+msgid ""
+"This is the first debit note of this document type: input its fiscal number."
+msgstr ""
+"Esta es la primera nota de débito de este tipo de documento: digite su "
+"número fiscal."
