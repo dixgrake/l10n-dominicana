@@ -658,6 +658,28 @@ class AccountMove(models.Model):
             )
 
     def _post(self, soft=True):
+        # The first fiscal number of a document type must be input manually.
+        # The form view requires it, but documents posted from elsewhere
+        # (credit/debit note wizards, list view, code) skipped that check
+        # and were posted without fiscal number.
+        missing_first_ncf = self.filtered(
+            lambda inv: inv.country_code == "DO"
+            and inv.l10n_latam_use_documents
+            and inv.l10n_latam_document_type_id
+            and inv.l10n_do_enable_first_sequence
+            and not inv.l10n_do_fiscal_number
+        )
+        if missing_first_ncf:
+            raise ValidationError(
+                _(
+                    "The first fiscal number of the following document types must be "
+                    "set manually before posting: %s"
+                )
+                % ", ".join(
+                    set(missing_first_ncf.mapped("l10n_latam_document_type_id.name"))
+                )
+            )
+
         res = super()._post(soft)
 
         l10n_do_invoices = self.filtered(
